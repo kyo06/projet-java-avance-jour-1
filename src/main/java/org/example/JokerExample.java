@@ -26,7 +26,7 @@ public class JokerExample {
         List<Integer> entiers = List.of(1, 2, 3);
         // afficher(entiers); // Erreur de compilation
         afficher2(entiers);
-        afficher3(entiers);
+        // afficher3(entiers); // Erreur de compilation
 
     }
 
