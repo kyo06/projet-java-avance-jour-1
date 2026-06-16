@@ -88,4 +88,42 @@ public class RunnableExercice {
         System.out.printf("Version 3 (pool × 3)   : %dms (parallèle !)%n",
                 System.currentTimeMillis() - debut3);
     }
+
+    public class Compteur {
+        private int valeur = 0;
+        // Méthode synchronisée — verrou = this
+        public void incrementer() {
+            valeur = valeur + 1;
+        }
+
+        public void incrementer() {
+
+            //Thread 1
+                //-> prend l'objet this comme témoin ou lock
+            //Thread 2
+                //-> il ne peut pas prendre l'objet this donc il attend que this soit libéré délivré
+
+            synchronized(this) {
+
+
+                valeur++;
+            }
+        }
+
+        public synchronized int getValeur() {
+            return valeur;
+        }
+
+        public static Compteur getCompteur() {
+            synchronized(Compteur.class) {
+                //Section critique
+            }
+
+        }
+
+        public static synchronized Compteur getCompteur() {
+            //Section critique
+        }
+
+    }
 }
