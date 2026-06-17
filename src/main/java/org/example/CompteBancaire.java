@@ -3,6 +3,7 @@ package org.example;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class CompteBancaire {
@@ -136,7 +137,7 @@ public class CompteBancaire {
 
         // Démarrage du détecteur
         startDeadlockMonitor();
-
+        Scanner sc = new Scanner(System.in);
         CompteBancaire compteA =
                 new CompteBancaire("A", 1000);
 
@@ -147,6 +148,9 @@ public class CompteBancaire {
                 compteA.getSolde() + compteB.getSolde();
 
         System.out.println("Total initial : " + totalInitial);
+
+        System.out.println("Etape 1");
+        sc.nextLine();
 
         Thread[] threads = new Thread[5];
 
@@ -176,6 +180,8 @@ public class CompteBancaire {
             }, "Worker-" + i);
         }
 
+        System.out.println("Etape 2");
+        sc.nextLine();
         for (Thread t : threads) {
             t.start();
         }
@@ -183,6 +189,8 @@ public class CompteBancaire {
         for (Thread t : threads) {
             t.join();
         }
+        System.out.println("Etape 3");
+        sc.nextLine();
 
         double totalFinal =
                 compteA.getSolde() + compteB.getSolde();
