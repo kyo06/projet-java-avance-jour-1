@@ -14,11 +14,11 @@ package com.formation.jour2;
  * la différence entre TCP et HTTP.
  * Partie 1 : Serveur HTTP minimal
  *
- * Créer un serveur qui écoute sur le port 8080.
+ * Créer un serveur qui écoute sur le port 9090.
  *
  * Lorsqu'un navigateur se connecte sur :
  *
- * http://localhost:8080
+ * http://localhost:9090
  *
  * le serveur doit :
  *
@@ -39,7 +39,7 @@ package com.formation.jour2;
  * Quand le navigateur appelle le serveur :
  *
  * GET / HTTP/1.1
- * Host: localhost:8080
+ * Host: localhost:9090
  * Connection: keep-alive
  * User-Agent: Mozilla/5.0
  *
@@ -47,7 +47,7 @@ package com.formation.jour2;
  *
  * Client connecté
  * GET / HTTP/1.1
- * Host: localhost:8080
+ * Host: localhost:9090
  * Connection: keep-alive
  * ...
  *
