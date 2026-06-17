@@ -79,7 +79,7 @@ public class CompteBancaire {
     /**
      * Surveillance des deadlocks.
      */
-    public static void startDeadlockMonitor() {
+    public static void startDeadlockMonitor(Scanner sc) {
 
         Thread monitor = new Thread(() -> {
 
@@ -117,6 +117,9 @@ public class CompteBancaire {
                         }
                     }
 
+                    System.out.println("Etape Deadlock détecté");
+                    sc.nextLine();
+
                     System.exit(1);
                 }
 
@@ -136,8 +139,8 @@ public class CompteBancaire {
     public static void main(String[] args) throws InterruptedException {
 
         // Démarrage du détecteur
-        startDeadlockMonitor();
         Scanner sc = new Scanner(System.in);
+        startDeadlockMonitor(sc);
         CompteBancaire compteA =
                 new CompteBancaire("A", 1000);
 
