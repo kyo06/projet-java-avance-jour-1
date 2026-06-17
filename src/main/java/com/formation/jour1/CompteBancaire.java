@@ -1,8 +1,11 @@
-package org.example;
+package com.formation.jour1;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -237,5 +240,14 @@ public class CompteBancaire {
                         ? "✓ COHÉRENT"
                         : "❌ INCOHÉRENT"
         );
+
+        List<String> l = new ArrayList<>();
+        l.add(compteA.getId()); // add n'est pas synchronizd
+        List<String> lSynchronized = Collections.synchronizedList(l);
+        l.add(compteA.getId()); // add est synchronizd
+
+        List<String> lImmutable = List.of(compteB.getId(), compteA.getId(), "Hello");
+        // lImmutable.add(compteB.getId()); //problem : UnsupportedOperationException
+
     }
 }
