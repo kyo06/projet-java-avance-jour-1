@@ -5,11 +5,16 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class CompteBancaire {
 
     private final String id;
     private double solde;
+
+    private static final ReentrantLock verrou1 = new ReentrantLock();
+    private static final ReentrantLock verrou2 = new ReentrantLock();
 
     public CompteBancaire(String id, double soldeInitial) {
         this.id = id;
@@ -39,7 +44,7 @@ public class CompteBancaire {
     /**
      * Transfert atomique sans deadlock.
      */
-    public void transferer(CompteBancaire destination, double montant) {
+    public void transferer(CompteBancaire destination, double montant) throws InterruptedException {
 
         if (destination == null) {
             throw new IllegalArgumentException("Destination null");
@@ -55,17 +60,30 @@ public class CompteBancaire {
         CompteBancaire second =
                 premier == this ? destination : this;
 
-        synchronized (this) {
-            synchronized (destination) {
+        while (true) {
+            if (verrou1.tryLock(50, TimeUnit.MILLISECONDS)) {
+                try {
+                    if (verrou2.tryLock(50, TimeUnit.MILLISECONDS)) {
+                        try {
+                            // Opération avec les deux verrous
+                            if (this.solde < montant) {
+                                return;
+                            }
 
-                if (this.solde < montant) {
-                    return;
+                            this.solde -= montant;
+                            destination.solde += montant;
+                        } finally {
+                            verrou2.unlock();
+                        }
+                    }
+                } finally {
+                    verrou1.unlock();
                 }
-
-                this.solde -= montant;
-                destination.solde += montant;
             }
+            System.out.println("Souci de deadlock");
+            Thread.sleep(10); // Attente avant retry
         }
+
     }
 
     public synchronized double getSolde() {
@@ -173,11 +191,19 @@ public class CompteBancaire {
                     if (ThreadLocalRandom.current()
                             .nextBoolean()) {
 
-                        compteA.transferer(compteB, montant);
+                        try {
+                            compteA.transferer(compteB, montant);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
 
                     } else {
 
-                        compteB.transferer(compteA, montant);
+                        try {
+                            compteB.transferer(compteA, montant);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
             }, "Worker-" + i);
