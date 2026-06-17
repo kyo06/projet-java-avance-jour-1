@@ -1,9 +1,6 @@
 package com.formation.jour2;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -84,6 +81,20 @@ public class HttpServer {
             } else if ("GET".equals(method) && "/bonjour".equals(path)) {
                 status = "200 OK";
                 body = "<h1>Bonjour</h1>";
+            } else if ("GET".equals(method) && "/test.html".equals(path)) {
+                status = "200 OK";
+                body = "";
+                File file = new File("src/main/resources/test.html");
+
+                try (BufferedReader reader =
+                             new BufferedReader(new FileReader(file))) {
+
+                    String lineFile;
+
+                    while ((lineFile = reader.readLine()) != null) {
+                        body += lineFile;
+                    }
+                }
             } else {
                 status = "404 Not Found";
                 body = "<h1>404 - Page non trouvée</h1>";
