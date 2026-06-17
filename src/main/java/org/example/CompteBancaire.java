@@ -1,26 +1,12 @@
 package org.example;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Objectif : Concevoir une classe métier thread-safe complète.
- * Durée estimée : 15 min
- * Compétence : synchronized, cohérence des invariants, tests de concurrence
- *
- * Énoncé
- * Implémentez une classe CompteBancaire avec les opérations deposer(montant), retirer(montant) et transferer(CompteBancaire dest, double montant). Toutes les opérations doivent être thread-safe.
- *
- * Contraintes :
- *
- * Le solde ne peut jamais être négatif
- * Le transfert entre deux comptes doit être atomique (pas de découvert intermédiaire)
- * La méthode transferer ne doit pas créer de deadlock
- * Testez avec 5 threads qui font des dépôts et retraits aléatoires simultanément pendant 2 secondes. Vérifiez la cohérence du solde final.
- *
- *
- */
-
 public class CompteBancaire {
+
     private final String id;
     private double solde;
 
@@ -31,79 +17,188 @@ public class CompteBancaire {
 
     public synchronized void deposer(double montant) {
         if (montant <= 0) {
-            throw new IllegalArgumentException("Montant invalide: " + montant);
+            throw new IllegalArgumentException("Montant invalide : " + montant);
         }
         solde += montant;
     }
 
     public synchronized boolean retirer(double montant) {
         if (montant <= 0) {
-            throw new IllegalArgumentException("Montant invalide: " + montant);
+            throw new IllegalArgumentException("Montant invalide : " + montant);
         }
-        if(solde < montant) {
-            return false; // Solde insuffisant — pas d'exception
+
+        if (solde < montant) {
+            return false;
         }
+
         solde -= montant;
         return true;
     }
 
     /**
      * Transfert atomique sans deadlock.
-     * Technique : acquérir les verrous dans un ordre déterministe basé sur l'ID.
-     * Les deux threads qui font A→B et B→A acquerront toujours dans le même ordre.
      */
     public void transferer(CompteBancaire destination, double montant) {
-        // Déterminer l'ordre d'acquisition
 
-        CompteBancaire premier = this.id.compareTo(destination.id) < 0 ? this : destination;
-        CompteBancaire second = premier == this ? destination : this;
+        if (destination == null) {
+            throw new IllegalArgumentException("Destination null");
+        }
 
-        synchronized (premier) {
+        if (montant <= 0) {
+            throw new IllegalArgumentException("Montant invalide : " + montant);
+        }
 
-             synchronized (second) {
-                if(this.solde < montant) {
-                    System.out.printf("[%s→%s] Solde insuffisant (%.2f < %.2f)%n",
-                            this.id, destination.id, this.solde, montant);
+        CompteBancaire premier =
+                this.id.compareTo(destination.id) < 0 ? this : destination;
+
+        CompteBancaire second =
+                premier == this ? destination : this;
+
+        synchronized (this) {
+            synchronized (destination) {
+
+                if (this.solde < montant) {
                     return;
                 }
+
                 this.solde -= montant;
                 destination.solde += montant;
-                System.out.printf("[%s→%s] Transfert %.2f | Soldes : %.2f / %.2f%n",
-                        this.id, destination.id, montant, this.solde, destination.solde);
-             }
+            }
         }
-
-
     }
 
-    public synchronized double getSolde() { return solde; }
-    public String getId() { return id; }
+    public synchronized double getSolde() {
+        return solde;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    /**
+     * Surveillance des deadlocks.
+     */
+    public static void startDeadlockMonitor() {
+
+        Thread monitor = new Thread(() -> {
+
+            ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+
+            while (true) {
+
+                long[] ids = bean.findDeadlockedThreads();
+
+                if (ids != null && ids.length > 0) {
+
+                    System.err.println("\n==============================");
+                    System.err.println(" DEADLOCK DETECTÉ !");
+                    System.err.println("==============================");
+
+                    ThreadInfo[] infos =
+                            bean.getThreadInfo(ids, true, true);
+
+                    for (ThreadInfo info : infos) {
+
+                        System.err.println("\nThread : "
+                                + info.getThreadName());
+
+                        System.err.println("Etat   : "
+                                + info.getThreadState());
+
+                        System.err.println("Attend le verrou détenu par : "
+                                + info.getLockOwnerName());
+
+                        System.err.println("\nStack trace :");
+
+                        for (StackTraceElement e :
+                                info.getStackTrace()) {
+                            System.err.println("    at " + e);
+                        }
+                    }
+
+                    System.exit(1);
+                }
+
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        });
+
+        monitor.setDaemon(true);
+        monitor.setName("DeadlockMonitor");
+        monitor.start();
+    }
 
     public static void main(String[] args) throws InterruptedException {
-        CompteBancaire compteA = new CompteBancaire("A", 1000.0);
-        CompteBancaire compteB = new CompteBancaire("B", 1000.0);
-        double totalInitial = compteA.getSolde() + compteB.getSolde();
-        System.out.printf("Total initial : %.2f€%n", totalInitial);
 
-        Thread[] threads = new Thread[10];
+        // Démarrage du détecteur
+        startDeadlockMonitor();
+
+        CompteBancaire compteA =
+                new CompteBancaire("A", 1000);
+
+        CompteBancaire compteB =
+                new CompteBancaire("B", 1000);
+
+        double totalInitial =
+                compteA.getSolde() + compteB.getSolde();
+
+        System.out.println("Total initial : " + totalInitial);
+
+        Thread[] threads = new Thread[5];
+
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = new Thread(() -> {
-                long fin = System.currentTimeMillis() + 2000;
-                while (System.currentTimeMillis() < fin) {
-                    double montant = ThreadLocalRandom.current().nextDouble(10, 1000);
-                    if (ThreadLocalRandom.current().nextBoolean())
-                        compteA.transferer(compteB, montant);
-                    else
-                        compteB.transferer(compteA, montant);
-                    try { Thread.sleep(10); } catch (InterruptedException e) { return; }
-                }
-            });
-        }
-        for (Thread t : threads) t.start();
-        for (Thread t : threads) t.join();
 
-        double totalFinal = compteA.getSolde() + compteB.getSolde();
-        System.out.printf("Total final   : %.2f€ %s%n",
-                totalFinal, Math.abs(totalFinal - totalInitial) < 0.01 ? "✓" : "❌ INCOHÉRENT !");
+            threads[i] = new Thread(() -> {
+
+                long fin =
+                        System.currentTimeMillis() + 2000;
+
+                while (System.currentTimeMillis() < fin) {
+
+                    double montant =
+                            ThreadLocalRandom.current()
+                                    .nextDouble(10, 500);
+
+                    if (ThreadLocalRandom.current()
+                            .nextBoolean()) {
+
+                        compteA.transferer(compteB, montant);
+
+                    } else {
+
+                        compteB.transferer(compteA, montant);
+                    }
+                }
+            }, "Worker-" + i);
+        }
+
+        for (Thread t : threads) {
+            t.start();
+        }
+
+        for (Thread t : threads) {
+            t.join();
+        }
+
+        double totalFinal =
+                compteA.getSolde() + compteB.getSolde();
+
+        System.out.println("\nCompte A : "
+                + compteA.getSolde());
+
+        System.out.println("Compte B : "
+                + compteB.getSolde());
+
+        System.out.printf(
+                "Total final : %.2f %s%n",
+                totalFinal,
+                Math.abs(totalFinal - totalInitial) < 0.01
+                        ? "✓ COHÉRENT"
+                        : "❌ INCOHÉRENT"
+        );
     }
 }
